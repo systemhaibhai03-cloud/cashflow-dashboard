@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cash Flow Dashboard</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <!-- ============ TOP BAR ============ -->
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark">₹</div>
+      <div>
+        <h1>Cash Flow Dashboard</h1>
+        <p class="sub" id="updatedAt">Loading…</p>
+      </div>
+    </div>
+    <button class="refresh-btn" id="refreshBtn">
+      <span class="spin-icon">⟳</span> Refresh data
+    </button>
+  </header>
+
+  <!-- ============ CONTROLS ============ -->
+  <section class="controls">
+    <div class="seg" id="companySeg">
+      <button class="seg-btn active" data-company="BOTH">Both</button>
+      <button class="seg-btn" data-company="VE">Vishal Electricals</button>
+      <button class="seg-btn" data-company="VTPL">Vishal Technopower</button>
+    </div>
+
+    <div class="seg" id="periodSeg">
+      <button class="seg-btn active" data-period="monthly">Monthly</button>
+      <button class="seg-btn" data-period="weekly">Weekly</button>
+    </div>
+
+    <label class="field">
+      <span>Month</span>
+      <select id="monthSelect"></select>
+    </label>
+
+    <label class="field" id="weekField" style="display:none">
+      <span>Week</span>
+      <select id="weekSelect">
+        <option value="ALL">All weeks</option>
+        <option value="1">Week 1 (1–7)</option>
+        <option value="2">Week 2 (8–14)</option>
+        <option value="3">Week 3 (15–21)</option>
+        <option value="4">Week 4 (22–end)</option>
+      </select>
+    </label>
+
+    <label class="toggle" id="interToggle">
+      <input type="checkbox" id="interCheck" />
+      <span>Include inter-company transfers</span>
+    </label>
+  </section>
+
+  <!-- ============ MAIN ============ -->
+  <main id="main">
+    <div class="loading" id="loadingBox">
+      <div class="loader"></div>
+      <p>Fetching your Google Sheet…</p>
+    </div>
+
+    <div id="errorBox" class="errorbox" style="display:none"></div>
+
+    <div id="content" style="display:none"></div>
+  </main>
+
+  <!-- ============ DETAIL MODAL ============ -->
+  <div class="modal-overlay" id="modalOverlay" style="display:none">
+    <div class="modal">
+      <div class="modal-head">
+        <h3 id="modalTitle">Details</h3>
+        <button class="close-btn" id="modalClose">✕</button>
+      </div>
+      <div class="modal-body" id="modalBody"></div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
