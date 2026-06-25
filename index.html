@@ -210,6 +210,70 @@ Reply briefly in the user's language.
   })();
   </script>
 
+  <!-- ================================================================= -->
+  <!--  VOICE COMMAND — mic dabao, bolo, command apne aap chal jayega    -->
+  <!--  Browser ka built-in Web Speech API. Mic ke liye HTTPS chahiye    -->
+  <!--  (GitHub Pages / localhost theek; file:// pe mic block ho sakta). -->
+  <!-- ================================================================= -->
+  <style>
+    #voiceBtn{position:fixed;left:18px;bottom:18px;z-index:2147483000;width:58px;height:58px;
+      border:none;border-radius:50%;cursor:pointer;background:#2563eb;color:#fff;font-size:24px;
+      box-shadow:0 4px 16px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;
+      transition:transform .15s,background .2s}
+    #voiceBtn:active{transform:scale(.92)}
+    #voiceBtn.listening{background:#dc2626;animation:vpulse 1s infinite}
+    @keyframes vpulse{0%{box-shadow:0 0 0 0 rgba(220,38,38,.6)}70%{box-shadow:0 0 0 16px rgba(220,38,38,0)}
+      100%{box-shadow:0 0 0 0 rgba(220,38,38,0)}}
+    #voiceHint{position:fixed;left:18px;bottom:86px;z-index:2147483000;max-width:74vw;background:#111;
+      color:#fff;padding:8px 12px;border-radius:10px;font:13px/1.4 system-ui,sans-serif;display:none;
+      box-shadow:0 4px 14px rgba(0,0,0,.3)}
+  </style>
+  <script>
+  (function setupVoice(){
+    // Pure Hindi bolte ho to 'hi-IN' kar do. Hinglish/English-mix ke liye 'en-IN' best chalta hai.
+    const VOICE_LANG = 'en-IN';
+
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const btn  = document.createElement('button'); btn.id='voiceBtn'; btn.textContent='🎤';
+    btn.title='Bol ke command do';
+    const hint = document.createElement('div');    hint.id='voiceHint';
+    document.body.appendChild(btn); document.body.appendChild(hint);
+
+    function toast(msg, ms){ hint.textContent=msg; hint.style.display='block';
+      clearTimeout(toast._t); if(ms) toast._t=setTimeout(()=>hint.style.display='none', ms); }
+
+    if(!SR){ btn.style.opacity=.5;
+      btn.onclick=()=>toast('Is browser mein voice support nahi hai. Chrome use karo.',3500);
+      return; }
+
+    const rec = new SR();
+    rec.lang = VOICE_LANG;
+    rec.interimResults = true;
+    rec.continuous = false;
+    let listening=false, finalText='';
+
+    function stop(){ try{ rec.stop(); }catch(e){} }
+
+    rec.onstart  = ()=>{ listening=true; btn.classList.add('listening'); btn.textContent='⏹';
+      toast('Sun raha hun… boliye'); };
+    rec.onresult = (e)=>{ let interim=''; finalText='';
+      for(let i=0;i<e.results.length;i++){ const t=e.results[i][0].transcript;
+        e.results[i].isFinal ? finalText+=t : interim+=t; }
+      toast('🎤 ' + (finalText||interim)); };
+    rec.onerror  = (e)=>{ toast('Voice error: '+e.error, 3000); };
+    rec.onend    = ()=>{
+      listening=false; btn.classList.remove('listening'); btn.textContent='🎤';
+      const cmd = finalText.trim();
+      if(!cmd){ toast('Kuch sunai nahi diya, dobara try karo', 2500); return; }
+      if(!window.pageAgent){ toast('AI agent abhi ready nahi hua', 2500); return; }
+      if(window.pageAgent.status === 'running'){ toast('Agent abhi busy hai — ruk ke try karo', 2500); return; }
+      toast('▶ ' + cmd, 3000);
+      window.pageAgent.execute(cmd);
+    };
+
+    btn.onclick = ()=>{ listening ? stop() : (finalText='', rec.start()); };
+  })();
+  </script>
+
 </body>
 </html>
-
