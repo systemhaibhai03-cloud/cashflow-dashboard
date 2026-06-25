@@ -1,0 +1,194 @@
+/* ========================================================
+   Cash Flow Dashboard — styles
+   Clean financial look. Green = money in, Red = money out.
+   ======================================================== */
+
+:root{
+  --ink:        #1a1f36;
+  --ink-soft:   #5a6178;
+  --paper:      #f4f6fb;
+  --card:       #ffffff;
+  --line:       #e6e9f2;
+  --accent:     #4f46e5;
+  --accent-soft:#eef0fe;
+
+  --in:         #0f9d6b;   /* inflow green  */
+  --in-soft:    #e7f7f0;
+  --out:        #e2483d;   /* outflow red   */
+  --out-soft:   #fcebe9;
+  --net-pos:    #0f9d6b;
+  --net-neg:    #e2483d;
+
+  --radius: 14px;
+  --shadow: 0 1px 2px rgba(26,31,54,.04), 0 8px 24px rgba(26,31,54,.06);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+*{ box-sizing:border-box; margin:0; padding:0; }
+body{ background:var(--paper); color:var(--ink); }
+
+.num{ font-variant-numeric: tabular-nums; }
+
+/* ---------- Top bar ---------- */
+.topbar{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:18px 28px; background:var(--card); border-bottom:1px solid var(--line);
+  position:sticky; top:0; z-index:20;
+}
+.brand{ display:flex; align-items:center; gap:14px; }
+.brand-mark{
+  width:42px; height:42px; border-radius:11px;
+  background:linear-gradient(135deg,var(--accent),#7c73ff);
+  color:#fff; font-size:22px; font-weight:700;
+  display:flex; align-items:center; justify-content:center;
+}
+.topbar h1{ font-size:18px; font-weight:700; letter-spacing:-.2px; }
+.sub{ font-size:12.5px; color:var(--ink-soft); margin-top:2px; }
+
+.refresh-btn{
+  display:flex; align-items:center; gap:8px;
+  background:var(--accent); color:#fff; border:none;
+  padding:10px 16px; border-radius:10px; font-size:14px; font-weight:600;
+  cursor:pointer; transition:filter .15s;
+}
+.refresh-btn:hover{ filter:brightness(1.08); }
+.refresh-btn:disabled{ opacity:.6; cursor:default; }
+.spin-icon{ display:inline-block; font-size:16px; }
+.refresh-btn.loading .spin-icon{ animation:spin 1s linear infinite; }
+@keyframes spin{ to{ transform:rotate(360deg);} }
+
+/* ---------- Controls ---------- */
+.controls{
+  display:flex; align-items:flex-end; gap:18px; flex-wrap:wrap;
+  padding:18px 28px; background:var(--card); border-bottom:1px solid var(--line);
+}
+.seg{ display:inline-flex; background:var(--paper); border:1px solid var(--line);
+  border-radius:10px; padding:3px; }
+.seg-btn{
+  border:none; background:transparent; color:var(--ink-soft);
+  padding:8px 14px; border-radius:8px; font-size:13.5px; font-weight:600;
+  cursor:pointer; transition:all .15s;
+}
+.seg-btn.active{ background:var(--card); color:var(--ink); box-shadow:var(--shadow); }
+.field{ display:flex; flex-direction:column; gap:5px; }
+.field span{ font-size:12px; color:var(--ink-soft); font-weight:600; padding-left:2px; }
+.field select{
+  padding:9px 12px; border:1px solid var(--line); border-radius:9px;
+  background:var(--card); font-size:14px; color:var(--ink); min-width:150px; cursor:pointer;
+}
+.toggle{ display:flex; align-items:center; gap:8px; cursor:pointer;
+  font-size:13px; font-weight:600; color:var(--ink-soft); padding-bottom:9px; user-select:none; }
+.toggle input{ width:16px; height:16px; accent-color:var(--accent); cursor:pointer; }
+
+.exclude-note{
+  display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--ink-soft);
+  background:var(--paper); border:1px dashed var(--line); border-radius:9px;
+  padding:9px 13px; margin-bottom:18px;
+}
+.exclude-note b{ color:var(--ink); }
+.exclude-note .ic{ color:var(--accent); font-weight:700; }
+
+/* ---------- Main ---------- */
+main{ padding:26px 28px 60px; }
+
+.loading{ text-align:center; padding:80px 0; color:var(--ink-soft); }
+.loader{
+  width:38px; height:38px; margin:0 auto 16px;
+  border:4px solid var(--line); border-top-color:var(--accent);
+  border-radius:50%; animation:spin 1s linear infinite;
+}
+.errorbox{
+  background:var(--out-soft); border:1px solid #f3c6c1; color:#9b2c22;
+  padding:18px 20px; border-radius:var(--radius); line-height:1.55; font-size:14px;
+}
+.errorbox b{ display:block; margin-bottom:6px; font-size:15px; }
+
+/* ---------- Company block ---------- */
+.company-grid{ display:grid; gap:24px; }
+.company-grid.both{ grid-template-columns:1fr 1fr; }
+@media (max-width:1050px){ .company-grid.both{ grid-template-columns:1fr; } }
+
+.company-title{
+  font-size:15px; font-weight:700; margin-bottom:14px;
+  display:flex; align-items:center; gap:9px;
+}
+.company-title .dot{ width:9px; height:9px; border-radius:50%; background:var(--accent); }
+
+/* ---------- Summary cards ---------- */
+.cards{ display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:22px; }
+.card{
+  background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+  padding:16px 18px; box-shadow:var(--shadow);
+}
+.card .label{ font-size:12.5px; color:var(--ink-soft); font-weight:600;
+  display:flex; align-items:center; gap:7px; }
+.card .label .tick{ width:8px; height:8px; border-radius:2px; }
+.card .value{ font-size:23px; font-weight:700; margin-top:8px; letter-spacing:-.5px; }
+.card .approx{ font-size:12px; color:var(--ink-soft); margin-top:3px; }
+.card.in  .tick{ background:var(--in); }
+.card.out .tick{ background:var(--out); }
+.card.net .tick{ background:var(--accent); }
+.card.in  .value{ color:var(--in); }
+.card.out .value{ color:var(--out); }
+.val-pos{ color:var(--net-pos) !important; }
+.val-neg{ color:var(--net-neg) !important; }
+
+/* ---------- Breakdown ---------- */
+.panel{
+  background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+  box-shadow:var(--shadow); margin-bottom:20px; overflow:hidden;
+}
+.panel-head{
+  padding:15px 18px; border-bottom:1px solid var(--line);
+  display:flex; align-items:center; justify-content:space-between;
+}
+.panel-head h4{ font-size:14.5px; font-weight:700; }
+.panel-head .hint{ font-size:12px; color:var(--ink-soft); }
+.panel-total{ font-size:14px; font-weight:700; }
+
+.row{
+  display:flex; align-items:center; gap:12px;
+  padding:11px 18px; border-bottom:1px solid var(--line); cursor:pointer;
+  transition:background .12s;
+}
+.row:last-child{ border-bottom:none; }
+.row:hover{ background:var(--paper); }
+.row .rname{ flex:1; min-width:0; font-size:13.5px; font-weight:600;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.row .tag{
+  font-size:10.5px; font-weight:700; padding:2px 7px; border-radius:5px;
+  text-transform:uppercase; letter-spacing:.3px;
+}
+.tag.vendor{ background:var(--accent-soft); color:var(--accent); }
+.tag.head{ background:#eef1f6; color:var(--ink-soft); }
+.row .rbar{ flex:0 0 120px; height:6px; background:var(--line); border-radius:4px; overflow:hidden; }
+.row .rbar > i{ display:block; height:100%; border-radius:4px; }
+.row .ramt{ flex:0 0 130px; text-align:right; font-size:13.5px; font-weight:700; }
+.row .rcount{ flex:0 0 26px; text-align:center; font-size:11px; color:var(--ink-soft); }
+
+.empty{ padding:26px 18px; text-align:center; color:var(--ink-soft); font-size:13.5px; }
+
+/* ---------- Modal ---------- */
+.modal-overlay{
+  position:fixed; inset:0; background:rgba(26,31,54,.5);
+  display:flex; align-items:center; justify-content:center; z-index:50; padding:24px;
+}
+.modal{
+  background:var(--card); border-radius:16px; width:min(720px,100%);
+  max-height:82vh; display:flex; flex-direction:column; box-shadow:0 20px 60px rgba(0,0,0,.3);
+}
+.modal-head{ padding:18px 20px; border-bottom:1px solid var(--line);
+  display:flex; align-items:center; justify-content:space-between; }
+.modal-head h3{ font-size:16px; font-weight:700; }
+.close-btn{ border:none; background:var(--paper); width:30px; height:30px; border-radius:8px;
+  cursor:pointer; font-size:14px; color:var(--ink-soft); }
+.close-btn:hover{ background:var(--line); }
+.modal-body{ padding:6px 20px 20px; overflow-y:auto; }
+
+.detail-row{ display:flex; gap:12px; padding:11px 0; border-bottom:1px solid var(--line);
+  align-items:center; }
+.detail-row:last-child{ border-bottom:none; }
+.detail-row .ddate{ flex:0 0 92px; font-size:12.5px; color:var(--ink-soft); }
+.detail-row .dname{ flex:1; font-size:13.5px; font-weight:600; }
+.detail-row .dhead{ flex:0 0 130px; font-size:12px; color:var(--ink-soft); }
+.detail-row .damt{ flex:0 0 120px; text-align:right; font-weight:700; font-size:13.5px; }
