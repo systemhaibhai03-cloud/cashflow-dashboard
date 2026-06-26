@@ -95,6 +95,8 @@
       transition:transform .15s,background .2s}
     #voiceBtn:active{transform:scale(.92)}
     #voiceBtn.listening{background:#dc2626;animation:vpulse 1s infinite}
+    #voiceBtn.processing{background:#f59e0b;animation:vpulse 1.4s infinite}
+    #voiceBtn.speaking{background:#16a34a}
     @keyframes vpulse{0%{box-shadow:0 0 0 0 rgba(220,38,38,.6)}70%{box-shadow:0 0 0 16px rgba(220,38,38,0)}
       100%{box-shadow:0 0 0 0 rgba(220,38,38,0)}}
     #voiceHint{position:fixed;left:18px;bottom:86px;z-index:2147483000;max-width:74vw;background:#111;
@@ -109,12 +111,18 @@
       demo:   { model:'qwen3.5-plus', baseURL:'https://page-ag-testing-ohftxirgbn.cn-shanghai.fcapp.run', apiKey:'NA' },
       custom: { model:'qwen3.5-plus', baseURL:'https://YOUR-PROXY.onrender.com/v1', apiKey:'' },
       language: 'en-US',
+      maxSteps: 18,                       // kam steps = thoda fast (default 40 tha)
     };
-    const VOICE_LANG = 'en-IN';           // pure Hindi: 'hi-IN'
+    const VOICE_LANG    = 'en-IN';        // sunne ki bhasha. Pure Hindi: 'hi-IN'
+    const BACKGROUND_MODE = true;         // true = chat panel hidden, sab background mein
+    const SPEAK_OUTPUT    = true;         // true = jawab audio mein bhi bolega
+    const SPEAK_LANG      = 'en-IN';      // bolne ki bhasha. Hindi: 'hi-IN'
+
     const DASHBOARD_INSTRUCTIONS = `
-You are an assistant embedded inside the "Cash Flow Dashboard" of Vishal Electricals (VE)
-and Vishal Technopower (VTPL). Operate by clicking/selecting — do NOT compute numbers
-yourself; set the right filters then read the figures already shown.
+You control the "Cash Flow Dashboard" of Vishal Electricals (VE) and Vishal Technopower (VTPL).
+Work in the FEWEST possible actions. Be decisive, do not re-check the page unless needed.
+Keep evaluation/memory/next_goal to a few words each (short, not verbose), then act.
+Operate by clicking/selecting — set the right filters, then read the figures shown, then call done with a SHORT spoken answer (1-2 lines).
 Controls: company buttons "Both"/"Vishal Electricals"(VE)/"Vishal Technopower"(VTPL);
 "Monthly"/"Weekly" buttons (Weekly shows a Week dropdown: 1=1-7, 2=8-14, 3=15-21, 4=22-end);
 "Month" dropdown; "Include inter-company transfers" checkbox; "Refresh data" button;
@@ -161,21 +169,36 @@ clicking a row opens a detail popup (close with ✕). Amounts are INR. Reply bri
           try{ if(window.pageAgent && window.pageAgent.dispose) window.pageAgent.dispose(); }catch(e){}
           const c=PA_CONFIG[PA_CONFIG.mode];
           window.pageAgent=new window.PageAgent({
-            model:c.model, baseURL:c.baseURL, apiKey:c.apiKey,
+            model:c.model, baseURL:c.baseURL, apiKey:c.apiKey, maxSteps:PA_CONFIG.maxSteps,
             language:PA_CONFIG.language, instructions:{ system:DASHBOARD_INSTRUCTIONS }
           });
-          window.pageAgent.panel.show();
-          console.log('[PageAgent] ready ✓ (mode: '+PA_CONFIG.mode+')');
+          if(BACKGROUND_MODE){
+            // panel ko hamesha hidden rakho (woh status 'running' pe khud show hota hai, isliye show ko no-op)
+            try{ window.pageAgent.panel.show=function(){}; window.pageAgent.panel.hide(); }catch(e){}
+          } else {
+            window.pageAgent.panel.show();
+          }
+          console.log('[PageAgent] ready ✓ (mode: '+PA_CONFIG.mode+', background: '+BACKGROUND_MODE+')');
         };
-        // file:// pe bundle khud auto-init karta hai → thoda ruk ke apni config se replace
         (LOCAL.indexOf('autoInit=false')===-1) ? setTimeout(apply,120) : apply();
       }
+    }
+
+    /* =============== TTS — jawab bol ke sunao =============== */
+    function speak(text){
+      if(!SPEAK_OUTPUT || !text || !window.speechSynthesis) return;
+      try{
+        window.speechSynthesis.cancel();
+        const u=new SpeechSynthesisUtterance(String(text));
+        u.lang=SPEAK_LANG; u.rate=1.05;
+        window.speechSynthesis.speak(u);
+      }catch(e){}
     }
 
     /* =============== 3) Voice (mic) =============== */
     function setupVoice(){
       const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-      const btn=document.createElement('button'); btn.id='voiceBtn'; btn.textContent='🎤'; btn.title='Bol ke command do';
+      const btn=document.createElement('button'); btn.id='voiceBtn'; btn.textContent='🎤'; btn.title='Tap: bolo · Long-press: chat panel';
       const hint=document.createElement('div'); hint.id='voiceHint';
       document.body.appendChild(btn); document.body.appendChild(hint);
       const toast=(m,ms)=>{ hint.textContent=m; hint.style.display='block';
@@ -184,6 +207,23 @@ clicking a row opens a detail popup (close with ✕). Amounts are INR. Reply bri
       const rec=new SR(); rec.lang=VOICE_LANG; rec.interimResults=true; rec.continuous=false;
       let listening=false, finalText='';
       const stop=()=>{ try{ rec.stop(); }catch(e){} };
+
+      async function runCommand(cmd){
+        btn.classList.add('processing'); btn.textContent='⏳'; toast('▶ '+cmd+'  …kaam ho raha hai',4000);
+        try{
+          const r=await window.pageAgent.execute(cmd);          // background mein chalega
+          btn.classList.remove('processing');
+          const ans=(r && r.data) ? r.data : 'Ho gaya';
+          toast('💬 '+ans, 6000);
+          btn.classList.add('speaking'); btn.textContent='🔊';
+          speak(ans);
+          setTimeout(()=>{ btn.classList.remove('speaking'); btn.textContent='🎤'; }, 1500);
+        }catch(e){
+          btn.classList.remove('processing'); btn.textContent='🎤';
+          toast('Error: '+(e&&e.message?e.message:'kuch galat hua'),4000);
+        }
+      }
+
       rec.onstart =()=>{ listening=true; btn.classList.add('listening'); btn.textContent='⏹'; toast('Sun raha hun… boliye'); };
       rec.onresult=(e)=>{ let it=''; finalText='';
         for(let i=0;i<e.results.length;i++){ const t=e.results[i][0].transcript; e.results[i].isFinal?finalText+=t:it+=t; }
@@ -195,9 +235,27 @@ clicking a row opens a detail popup (close with ✕). Amounts are INR. Reply bri
         if(!cmd){ toast('Kuch sunai nahi diya',2500); return; }
         if(!window.pageAgent){ toast('AI ready ho raha hai, 2 sec ruk ke dobara bolo',3000); startAgent(); return; }
         if(window.pageAgent.status==='running'){ toast('Agent abhi busy hai',2500); return; }
-        toast('▶ '+cmd,3000); window.pageAgent.execute(cmd);
+        runCommand(cmd);
       };
-      btn.onclick=()=>{ listening ? stop() : (finalText='', rec.start()); };
+
+      // tap = bolo / stop ;  long-press = chat panel toggle (jab type karna ho)
+      let lp=null, longPressed=false;
+      const startLP=()=>{ longPressed=false; lp=setTimeout(()=>{ longPressed=true; togglePanel(); }, 550); };
+      const clearLP=()=>{ clearTimeout(lp); };
+      function togglePanel(){
+        if(!window.pageAgent){ toast('AI abhi ready nahi',2000); startAgent(); return; }
+        const p=window.pageAgent.panel; const el=p && (p.element||p.root||p.container);
+        // panel.show no-op kar diya tha (background); yahan seedha element toggle karte hain
+        try{
+          if(el){ const vis=getComputedStyle(el).display!=='none'; el.style.display=vis?'none':'block'; toast(vis?'Panel hidden':'Panel shown',1500); }
+          else { p.hide(); toast('Panel toggle',1200); }
+        }catch(e){ toast('Panel toggle nahi hua',1500); }
+      }
+      btn.addEventListener('touchstart',startLP,{passive:true});
+      btn.addEventListener('touchend',clearLP);
+      btn.addEventListener('mousedown',startLP);
+      btn.addEventListener('mouseup',clearLP);
+      btn.onclick=()=>{ if(longPressed){ longPressed=false; return; } listening ? stop() : (finalText='', rec.start()); };
     }
 
     /* =============== kickoff =============== */
