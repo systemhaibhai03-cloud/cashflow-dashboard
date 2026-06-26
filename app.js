@@ -16,7 +16,7 @@ const SHEETS = [
   { name: 'CASH OUT FLOW VTPL', company: 'VTPL', type: 'outflow' },
 ];
 
-const COMPANY_NAMES = { VE: 'Vishal Electricals', VTPL: 'Vishal Technopower' };
+const COMPANY_NAMES = { VE: 'Vishal Electricals', VTPL: 'Vishal Technopower', BOTH: 'Both Companies — Total' };
 
 // Inter-company transfer detection (apni do company ke beech ka paisa)
 const INTERCOMPANY = { VE: ['TECHNOPOWER'], VTPL: ['ELECTRICAL'] };
@@ -147,9 +147,7 @@ function inrFull(n){
   return (neg ? '-₹' : '₹') + s;
 }
 function inrShort(n){
-  const neg = n < 0; const a = Math.abs(n); const sign = neg ? '-' : '';
-  if (a >= 1e7) return sign + '₹' + (a/1e7).toFixed(2) + ' Cr';
-  if (a >= 1e5) return sign + '₹' + (a/1e5).toFixed(2) + ' L';
+  // User chahte hain full numbers har jagah (L/K/Cr nahi)
   return inrFull(n);
 }
 
@@ -209,73 +207,94 @@ const $ = sel => document.querySelector(sel);
 
 function renderContent(){
   const content = $('#content');
-  const companies = state.company === 'BOTH' ? ['VE','VTPL'] : [state.company];
-  const grid = document.createElement('div');
-  grid.className = 'company-grid' + (state.company === 'BOTH' ? ' both' : '');
-
-  for (const co of companies){
-    const coAll = ALL.filter(r => r.company === co && inPeriod(r));
-    const recs = coAll.filter(r => state.includeInter || !r.intercompany);
-    const inter = coAll.filter(r => r.intercompany);
-    const inflow  = recs.filter(r => r.type === 'inflow');
-    const outflow = recs.filter(r => r.type === 'outflow');
-    const inTot = sum(inflow), outTot = sum(outflow), net = inTot - outTot;
-
-    const interTot = sum(inter);
-    let noteHtml = '';
-    if (inter.length){
-      noteHtml = state.includeInter
-        ? `<div class="exclude-note"><span class="ic">⚠</span>
-             <span><b>${inter.length}</b> inter-company transfer included
-             (<b class="num">${inrShort(interTot)}</b>) — uncheck the box to exclude.</span></div>`
-        : `<div class="exclude-note"><span class="ic">✓</span>
-             <span><b>${inter.length}</b> inter-company transfer excluded
-             (<b class="num">${inrShort(interTot)}</b>) — apni dono company ke beech ka paisa, count nahi hua.</span></div>`;
-    }
-
-    const block = document.createElement('div');
-    block.className = 'company-block';
-    block.innerHTML = `
-      <div class="company-title"><span class="dot"></span>${COMPANY_NAMES[co] || co}</div>
-      <div class="cards">
-        <div class="card in">
-          <div class="label"><span class="tick"></span>Cash In</div>
-          <div class="value num">${inrShort(inTot)}</div>
-          <div class="approx num">${inrFull(inTot)}</div>
-        </div>
-        <div class="card out">
-          <div class="label"><span class="tick"></span>Cash Out</div>
-          <div class="value num">${inrShort(outTot)}</div>
-          <div class="approx num">${inrFull(outTot)}</div>
-        </div>
-        <div class="card net">
-          <div class="label"><span class="tick"></span>Net Flow</div>
-          <div class="value num ${net>=0?'val-pos':'val-neg'}">${inrShort(net)}</div>
-          <div class="approx num">${inrFull(net)}</div>
-        </div>
-      </div>
-      ${noteHtml}
-    `;
-
-    block.appendChild(buildPanel({
-      title: 'Outflow — head-wise',
-      hint: '1 lakh+ entries vendor naam se · neeche head total',
-      total: outTot, totalColor: 'var(--out)',
-      rows: outflowBreakdown(outflow), barColor: 'var(--out)',
-      allEntries: outflow, allLabel: 'all outflow entries', company: co, kind: 'Outflow',
-    }));
-    block.appendChild(buildPanel({
-      title: 'Inflow — head-wise',
-      hint: 'Sales, deposit, transfers…',
-      total: inTot, totalColor: 'var(--in)',
-      rows: inflowBreakdown(inflow), barColor: 'var(--in)',
-      allEntries: inflow, allLabel: 'all inflow entries', company: co, kind: 'Inflow',
-    }));
-
-    grid.appendChild(block);
-  }
   content.innerHTML = '';
-  content.appendChild(grid);
+  const companies = state.company === 'BOTH' ? ['VE','VTPL'] : [state.company];
+
+  // har company ka data nikaalo
+  const perCo = companies.map(co => {
+    const coAll = ALL.filter(r => r.company === co && inPeriod(r));
+    const recs  = coAll.filter(r => state.includeInter || !r.intercompany);
+    return {
+      co,
+      inflow:  recs.filter(r => r.type === 'inflow'),
+      outflow: recs.filter(r => r.type === 'outflow'),
+      inter:   coAll.filter(r => r.intercompany),
+    };
+  });
+
+  if (state.company === 'BOTH'){
+    // TOTAL block sabse upar (full width)
+    const tIn  = perCo.flatMap(p => p.inflow);
+    const tOut = perCo.flatMap(p => p.outflow);
+    const tInt = perCo.flatMap(p => p.inter);
+    content.appendChild(buildCompanyBlock('BOTH', tIn, tOut, tInt, true));
+    // phir VE + VTPL side-by-side
+    const sub = document.createElement('div');
+    sub.className = 'company-grid both';
+    perCo.forEach(p => sub.appendChild(buildCompanyBlock(p.co, p.inflow, p.outflow, p.inter, false)));
+    content.appendChild(sub);
+  } else {
+    const p = perCo[0];
+    const wrap = document.createElement('div'); wrap.className = 'company-grid';
+    wrap.appendChild(buildCompanyBlock(p.co, p.inflow, p.outflow, p.inter, false));
+    content.appendChild(wrap);
+  }
+}
+
+function buildCompanyBlock(co, inflow, outflow, inter, isTotal){
+  const inTot = sum(inflow), outTot = sum(outflow), net = inTot - outTot;
+  const interTot = sum(inter);
+
+  let noteHtml = '';
+  if (inter.length){
+    noteHtml = state.includeInter
+      ? `<div class="exclude-note"><span class="ic">⚠</span>
+           <span><b>${inter.length}</b> inter-company transfer included
+           (<b class="num">${inrFull(interTot)}</b>) — uncheck the box to exclude.</span></div>`
+      : `<div class="exclude-note"><span class="ic">✓</span>
+           <span><b>${inter.length}</b> inter-company transfer excluded
+           (<b class="num">${inrFull(interTot)}</b>) — apni dono company ke beech ka paisa, count nahi hua.</span></div>`;
+  }
+
+  const block = document.createElement('div');
+  block.className = 'company-block' + (isTotal ? ' total' : '');
+  block.innerHTML = `
+    <div class="company-title"><span class="dot"></span>${COMPANY_NAMES[co] || co}</div>
+    <div class="cards">
+      <div class="card in">
+        <div class="label"><span class="tick"></span>Cash In</div>
+        <div class="value num">${inrFull(inTot)}</div>
+      </div>
+      <div class="card out">
+        <div class="label"><span class="tick"></span>Cash Out</div>
+        <div class="value num">${inrFull(outTot)}</div>
+      </div>
+      <div class="card net">
+        <div class="label"><span class="tick"></span>Net Flow</div>
+        <div class="value num ${net>=0?'val-pos':'val-neg'}">${inrFull(net)}</div>
+      </div>
+    </div>
+    ${noteHtml}
+  `;
+
+  // Inflow UPAR
+  block.appendChild(buildPanel({
+    title: 'Inflow — head-wise',
+    hint: 'Sales, deposit, transfers…',
+    total: inTot, totalColor: 'var(--in)',
+    rows: inflowBreakdown(inflow), barColor: 'var(--in)',
+    allEntries: inflow, allLabel: 'all inflow entries', company: co, kind: 'Inflow',
+  }));
+  // Outflow NICHE
+  block.appendChild(buildPanel({
+    title: 'Outflow — head-wise',
+    hint: '1 lakh+ entries vendor naam se · neeche head total',
+    total: outTot, totalColor: 'var(--out)',
+    rows: outflowBreakdown(outflow), barColor: 'var(--out)',
+    allEntries: outflow, allLabel: 'all outflow entries', company: co, kind: 'Outflow',
+  }));
+
+  return block;
 }
 
 function buildPanel(opt){
