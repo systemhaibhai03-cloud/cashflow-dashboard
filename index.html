@@ -116,7 +116,7 @@
     const VOICE_LANG    = 'en-IN';        // sunne ki bhasha. Pure Hindi: 'hi-IN'
     const BACKGROUND_MODE = true;         // true = chat panel hidden, sab background mein
     const SPEAK_OUTPUT    = true;         // true = jawab audio mein bhi bolega
-    const SPEAK_LANG      = 'en-IN';      // bolne ki bhasha. Hindi: 'hi-IN'
+    const SPEAK_LANG      = 'hi-IN';      // bolne ki bhasha (Hinglish ke liye hi-IN sahi). English: 'en-IN'
 
     const DASHBOARD_INSTRUCTIONS = `
 You control the "Cash Flow Dashboard" of Vishal Electricals (VE) and Vishal Technopower (VTPL).
@@ -126,7 +126,10 @@ Operate by clicking/selecting — set the right filters, then read the figures s
 Controls: company buttons "Both"/"Vishal Electricals"(VE)/"Vishal Technopower"(VTPL);
 "Monthly"/"Weekly" buttons (Weekly shows a Week dropdown: 1=1-7, 2=8-14, 3=15-21, 4=22-end);
 "Month" dropdown; "Include inter-company transfers" checkbox; "Refresh data" button;
-clicking a row opens a detail popup (close with ✕). Amounts are INR. Reply briefly in the user's language.
+clicking a row opens a detail popup (close with ✕). Amounts are INR.
+IMPORTANT — reply style: answer in simple HINGLISH (Hindi written in English letters), exactly how the user speaks. Keep it ONE short line and end politely.
+Example: user "June outflow?" -> done text: "June mein 45 lakh ka outflow hai, dhanyawad."
+Use short money words: "lakh", "crore". Do not give long explanations or English paragraphs.
 `.trim();
 
     /* =============== 1) Data load hone ka wait =============== */
