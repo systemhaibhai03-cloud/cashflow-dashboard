@@ -102,6 +102,19 @@
     #voiceHint{position:fixed;left:18px;bottom:86px;z-index:2147483000;max-width:74vw;background:#111;
       color:#fff;padding:8px 12px;border-radius:10px;font:13px/1.4 system-ui,sans-serif;display:none;
       box-shadow:0 4px 14px rgba(0,0,0,.3)}
+    #gearBtn{position:fixed;left:84px;bottom:24px;z-index:2147483000;width:44px;height:44px;border:none;
+      border-radius:50%;cursor:pointer;background:#475569;color:#fff;font-size:18px;box-shadow:0 3px 12px rgba(0,0,0,.3)}
+    #elModal{position:fixed;inset:0;z-index:2147483600;background:rgba(0,0,0,.55);display:none;
+      align-items:center;justify-content:center;padding:20px;font-family:system-ui,sans-serif}
+    #elModal .box{background:#0f172a;color:#e2e8f0;max-width:420px;width:100%;border-radius:16px;padding:20px}
+    #elModal h3{margin:0 0 6px;font-size:17px} #elModal p{margin:0 0 14px;font-size:12px;color:#94a3b8}
+    #elModal label{display:block;font-size:13px;margin:10px 0 4px;color:#cbd5e1}
+    #elModal input{width:100%;box-sizing:border-box;padding:11px;border-radius:9px;border:1px solid #334155;
+      background:#1e293b;color:#fff;font-size:14px}
+    #elModal .btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+    #elModal button{flex:1;min-width:90px;padding:11px;border:none;border-radius:9px;font-size:14px;font-weight:600;cursor:pointer}
+    .b-save{background:#2563eb;color:#fff} .b-test{background:#16a34a;color:#fff}
+    .b-clear{background:#7f1d1d;color:#fff} .b-close{background:#334155;color:#fff}
   </style>
   <script>
   (function(){
@@ -187,15 +200,86 @@ Use short money words: "lakh", "crore". Do not give long explanations or English
       }
     }
 
-    /* =============== TTS — jawab bol ke sunao =============== */
-    function speak(text){
-      if(!SPEAK_OUTPUT || !text || !window.speechSynthesis) return;
-      try{
-        window.speechSynthesis.cancel();
+    /* =============== TTS — ElevenLabs (key ho to) warna browser voice =============== */
+    const SILENT_WAV='data:audio/wav;base64,UklGRrQBAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YZABAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAA';
+    const ttsAudio=new Audio();
+    let ttsPrimed=false, pickedVoice=null;
+    const elKey  =()=>{ try{return localStorage.getItem('el_key')||'';}catch(e){return '';} };
+    const elVoice=()=>{ try{return localStorage.getItem('el_voice')||'21m00Tcm4TlvDq8ikWAM';}catch(e){return '21m00Tcm4TlvDq8ikWAM';} };
+
+    function pickVoice(){
+      if(!window.speechSynthesis) return;
+      const vs=window.speechSynthesis.getVoices()||[];
+      pickedVoice = vs.find(v=>v.lang===SPEAK_LANG) || vs.find(v=>v.lang&&v.lang.indexOf('hi')===0)
+                 || vs.find(v=>v.lang&&v.lang.indexOf('en-IN')===0) || vs.find(v=>v.lang&&v.lang.indexOf('en')===0) || vs[0] || null;
+    }
+    if(window.speechSynthesis){ pickVoice(); window.speechSynthesis.onvoiceschanged=pickVoice; }
+
+    function primeTTS(){                                 // user-tap ke andar audio unlock (mobile)
+      if(ttsPrimed) return; ttsPrimed=true;
+      try{ const u=new SpeechSynthesisUtterance(' '); u.volume=0; window.speechSynthesis&&window.speechSynthesis.speak(u); }catch(e){}
+      try{ ttsAudio.src=SILENT_WAV; ttsAudio.play().then(()=>{ttsAudio.pause();}).catch(()=>{}); }catch(e){}
+    }
+    function speakBrowser(text){
+      if(!window.speechSynthesis) return;
+      try{ window.speechSynthesis.cancel();
         const u=new SpeechSynthesisUtterance(String(text));
-        u.lang=SPEAK_LANG; u.rate=1.05;
-        window.speechSynthesis.speak(u);
+        if(pickedVoice){ u.voice=pickedVoice; u.lang=pickedVoice.lang; } else { u.lang=SPEAK_LANG; }
+        u.rate=1.05; u.volume=1; window.speechSynthesis.resume(); window.speechSynthesis.speak(u);
       }catch(e){}
+    }
+    async function speakEL(text){
+      const key=elKey(); if(!key) throw new Error('no key');
+      const res=await fetch('https://api.elevenlabs.io/v1/text-to-speech/'+elVoice(),{
+        method:'POST',
+        headers:{ 'xi-api-key':key, 'Content-Type':'application/json', 'Accept':'audio/mpeg' },
+        body:JSON.stringify({ text:String(text), model_id:'eleven_turbo_v2_5',
+          voice_settings:{ stability:0.5, similarity_boost:0.75 } })
+      });
+      if(!res.ok){ throw new Error('ElevenLabs '+res.status+(res.status===401?' (key galat?)':res.status===429?' (free limit khatam?)':'')); }
+      const blob=await res.blob();
+      ttsAudio.src=URL.createObjectURL(blob);
+      await ttsAudio.play();
+    }
+    function speak(text){
+      if(!SPEAK_OUTPUT||!text) return;
+      if(elKey()){ speakEL(text).catch(err=>{ console.warn('[TTS] ElevenLabs fail → browser voice:',err.message); speakBrowser(text); }); }
+      else speakBrowser(text);
+    }
+
+    /* =============== Settings modal (ElevenLabs key — 1 time) =============== */
+    function setupSettings(){
+      const gear=document.createElement('button'); gear.id='gearBtn'; gear.textContent='⚙️'; gear.title='Voice settings';
+      const m=document.createElement('div'); m.id='elModal';
+      m.innerHTML=`<div class="box">
+        <h3>🔊 Voice settings — ElevenLabs</h3>
+        <p>Key sirf is browser mein save hoti hai (localStorage), public source mein nahi jaati. Khaali chhodo to free browser-voice chalegi.</p>
+        <label>ElevenLabs API key</label>
+        <input id="elKeyIn" type="password" placeholder="sk_..." />
+        <label>Voice ID (optional)</label>
+        <input id="elVoiceIn" type="text" placeholder="21m00Tcm4TlvDq8ikWAM (Rachel)" />
+        <div class="btns">
+          <button class="b-save">Save</button>
+          <button class="b-test">Test 🔊</button>
+          <button class="b-clear">Clear</button>
+          <button class="b-close">Band karo</button>
+        </div></div>`;
+      document.body.appendChild(gear); document.body.appendChild(m);
+      const keyIn=m.querySelector('#elKeyIn'), voiceIn=m.querySelector('#elVoiceIn');
+      const open=()=>{ keyIn.value=elKey(); voiceIn.value=(localStorage.getItem('el_voice')||''); m.style.display='flex'; };
+      const close=()=>{ m.style.display='none'; };
+      gear.onclick=()=>{ primeTTS(); open(); };
+      m.addEventListener('click',e=>{ if(e.target===m) close(); });
+      m.querySelector('.b-save').onclick=()=>{ try{
+        keyIn.value.trim() ? localStorage.setItem('el_key',keyIn.value.trim()) : localStorage.removeItem('el_key');
+        voiceIn.value.trim() ? localStorage.setItem('el_voice',voiceIn.value.trim()) : localStorage.removeItem('el_voice');
+        alert('Save ho gaya'+(keyIn.value.trim()?' — ab ElevenLabs voice chalegi':' — ab free browser voice chalegi')); close();
+      }catch(e){ alert('Save nahi hua: '+e.message); } };
+      m.querySelector('.b-test').onclick=()=>{ primeTTS();
+        const k=keyIn.value.trim(); if(k){ try{localStorage.setItem('el_key',k);}catch(e){} if(voiceIn.value.trim()){try{localStorage.setItem('el_voice',voiceIn.value.trim());}catch(e){}} }
+        speak('Namaste, ye ElevenLabs test hai. June mein 45 lakh ka outflow hai, dhanyawad.'); };
+      m.querySelector('.b-clear').onclick=()=>{ try{localStorage.removeItem('el_key');localStorage.removeItem('el_voice');}catch(e){} keyIn.value=''; voiceIn.value=''; alert('Key hata di — ab free browser voice chalegi'); };
+      m.querySelector('.b-close').onclick=close;
     }
 
     /* =============== 3) Voice (mic) =============== */
@@ -258,11 +342,12 @@ Use short money words: "lakh", "crore". Do not give long explanations or English
       btn.addEventListener('touchend',clearLP);
       btn.addEventListener('mousedown',startLP);
       btn.addEventListener('mouseup',clearLP);
-      btn.onclick=()=>{ if(longPressed){ longPressed=false; return; } listening ? stop() : (finalText='', rec.start()); };
+      btn.onclick=()=>{ if(longPressed){ longPressed=false; return; } primeTTS(); listening ? stop() : (finalText='', rec.start()); };
     }
 
     /* =============== kickoff =============== */
     setupVoice();                          // mic turant dikh jaye
+    setupSettings();                       // ⚙️ gear (ElevenLabs key 1-time)
     whenDashboardReady(startAgent);        // agent sirf data aane ke BAAD
   })();
   </script>
